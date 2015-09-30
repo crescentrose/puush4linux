@@ -137,8 +137,9 @@ if [[ "$PUUSH_URL" == "-1," ]]; then
 	if [[ $PUUSH_QUIET != 1 ]]; then
 		notify-send "Upload failed due to authentication failure."
 	fi
-
-	rm $PUUSH_FILE
+	if [[ ! -z $PUUSH_MODE ]]; then
+		rm $PUUSH_FILE
+	fi
 	exit 1
 fi
 
@@ -146,8 +147,9 @@ if [[ "$PUUSH_URL" != http* ]]; then
 	if [[ $PUUSH_QUIET != 1 ]]; then
 		notify-send "Upload failed. Check your internet connection."
 	fi
-
-	rm $PUUSH_FILE
+	if [[ ! -z $PUUSH_MODE ]]; then
+		rm $PUUSH_FILE
+	fi
 	exit 2
 fi
 
