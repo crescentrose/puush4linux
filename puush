@@ -8,10 +8,12 @@
 
 
 # Read command line arguments.
-OPTIND=1 
+OPTIND=1
 
 PUUSH_QUIET=0 # Whether notifications via libnotify will be shown (default) or hidden.
 PUUSH_CLIP=0 # Whether the script will output to stdout (default) or the X clipboard.
+
+sleep 0.2 # Fix for rogue WMs/DEs.
 
 function show_help {
 	echo "puush4linux v0.1 - bash client for puush.me"
@@ -71,7 +73,7 @@ if [[ -z "$PUUSH_MODE" ]] && [[ -z "$PUUSH_SETUP" ]] && [[ -z "$PUUSH_FILE" ]]; 
 fi
 
 # Login logic
-if [[ "$PUUSH_SETUP" == 1 ]]; then 
+if [[ "$PUUSH_SETUP" == 1 ]]; then
 	printf "puush.me username (email): "
 	read PUUSH_USER
 	printf "puush.me password: "
@@ -84,7 +86,7 @@ if [[ "$PUUSH_SETUP" == 1 ]]; then
 		exit 1
 	else
 		mkdir -p "$HOME/.config/puush4linux/"
-		echo $PUUSH_KEY > "$HOME/.config/puush4linux/api_key" 
+		echo $PUUSH_KEY > "$HOME/.config/puush4linux/api_key"
 		echo "Authentication successful."
 	fi
 	exit
@@ -94,7 +96,7 @@ fi
 if [[ ! -e "$HOME/.config/puush4linux/api_key" ]]; then
 	if [[ $PUUSH_QUIET == 1 ]]; then
 		echo "API key is not set! Please run puush with the -l option to log in."
-	else 
+	else
 		notify-send "Can't puush: API key is not set. Please run puush with the -l option to log in."
 	fi
 	exit 1
@@ -103,27 +105,27 @@ else
 fi
 
 # Generate a file name
-if [[ -z $PUUSH_FILE ]]; then 
+if [[ -z $PUUSH_FILE ]]; then
 	PUUSH_FILE="/tmp/ss-`date '+%d-%m-%Y-%H%M%S'`.png"
 fi
 
 # Take the screenshot if necessary.
 case $PUUSH_MODE in
-	a) scrot -b -q 90 -s $PUUSH_FILE ;;
-	w) scrot -b -q 90 -u $PUUSH_FILE ;;
-	f) scrot -b -q 90 $PUUSH_FILE ;;
+	a) scrot -b -q 90 -s $PUUSH_FILE;;
+	w) scrot -b -q 90 -u $PUUSH_FILE;;
+	f) scrot -b -q 90 $PUUSH_FILE;;
 esac
 
 # Check if the screenshot was successful.
 # If not, notify the user and exit the program.
 if [[ ! -e "$PUUSH_FILE" ]]; then
 	if [[ $PUUSH_QUIET != 1 ]]; then
-		notify-send "File can't be found, upload cancelled."
+		notify-send "File $PUUSH_FILE not found, upload cancelled. (mode: $PUUSH_MODE)"
 	fi
 	exit 1
 fi
 # Notify the user that the upload is in progress.
-if [[ "$PUUSH_QUIET" != "1" ]]; then 
+if [[ "$PUUSH_QUIET" != "1" ]]; then
 	notify-send --urgency=low "Uploading file..."
 fi
 
@@ -134,7 +136,7 @@ PUUSH_URL=`curl "https://puush.me/api/up" -Ss -F "k=$PUUSH_KEY" -F "z=poop" -F "
 if [[ "$PUUSH_URL" == "-1," ]]; then
 	if [[ $PUUSH_QUIET != 1 ]]; then
 		notify-send "Upload failed due to authentication failure."
-	fi 
+	fi
 
 	rm $PUUSH_FILE
 	exit 1
@@ -149,7 +151,7 @@ if [[ "$PUUSH_URL" != http* ]]; then
 	exit 2
 fi
 
-if [[ $PUUSH_CLIP == 1 ]]; then 
+if [[ $PUUSH_CLIP == 1 ]]; then
 	# Output the URL to the clipboard
 	echo $PUUSH_URL | xclip -i -selection clipboard
 	if [[ $PUUSH_QUIET != 1 ]]; then
