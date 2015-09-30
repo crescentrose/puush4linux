@@ -4,6 +4,8 @@ puush4linux is a Linux client for the popular screenshot host [puush](http://puu
 
 ## Installation
 
+**Arch Linux** users may install the [puush4linux package](https://aur.archlinux.org/packages/puush4linux/) from the AUR, packaged by [/u/some_random_guy_5345](https://www.reddit.com/user/some_random_guy_5345).
+
 1. Install dependencies: `bash`, `scrot`, `curl` and (optionally) `libnotify`.
 2. Download the puush file and copy it to `/usr/bin`.
 3. Run `puush -l` in your terminal and enter your user name and password to log in.
