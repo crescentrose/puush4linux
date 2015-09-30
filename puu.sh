@@ -1,0 +1,164 @@
+#!/bin/bash
+
+# puush4linux v0.1
+# Bash client for the popular screenshot service puush.me
+# -------------------------------------------------------
+# Author: Darwin (http://hpup.co)
+# License: WTFPL, version 2
+
+
+# Read command line arguments.
+OPTIND=1 
+
+PUUSH_QUIET=0 # Whether notifications via libnotify will be shown (default) or hidden.
+PUUSH_CLIP=0 # Whether the script will output to stdout (default) or the X clipboard.
+
+function show_help {
+	echo "puush4linux v0.1 - bash client for puush.me"
+	echo "Usage: puush <OPTIONS> <FILENAME>"
+	echo "Options:"
+	echo " -q 		Do not show any notifications via libnotify."
+	echo " -c 		Output the URL of the uploaded image to X clipboard."
+	echo " -h 		Display this help."
+	echo " -a 		Take an area screenshot and upload it."
+	echo " -f 		Take a fullscreen screenshot and upload it."
+	echo " -w 		Take a screenshot of the active window and upload it."
+	echo " -l 		Log in to puush.me and save the API key."
+	echo "Examples: "
+	echo " puush -c -a 	Take an area screenshot, upload it and put the URL into clipboard"
+	echo "		(emulates Ctrl+Shift+4 from the official version)"
+	echo " puush -f -q 	Take a screenshot, upload it and display the URL in stdout."
+	exit 0
+}
+
+while getopts "h?qchafwl" opt; do
+    case "$opt" in
+    h|\?)
+        show_help
+        exit 0
+        ;;
+    q)  PUUSH_QUIET=1
+        ;;
+	c)  PUUSH_CLIP=1
+        ;;
+    a)  PUUSH_MODE=a
+		;;
+	f)  PUUSH_MODE=f
+		;;
+	w)	PUUSH_MODE=w
+		;;
+	l)	PUUSH_SETUP=1
+		;;
+    esac
+done
+
+shift $((OPTIND-1))
+[ "$1" = "--" ] && shift
+
+PUUSH_FILE=$@
+
+# Disable notifications if notify-send is not available.
+if hash notify-send 2>/dev/null; then
+	PUUSH_QUIET=0
+else
+	PUUSH_QUIET=1
+fi
+
+# Sanity check
+if [[ -z "$PUUSH_MODE" ]] && [[ -z "$PUUSH_SETUP" ]] && [[ -z "$PUUSH_FILE" ]]; then
+	show_help
+	exit 0
+fi
+
+# Login logic
+if [[ "$PUUSH_SETUP" == 1 ]]; then 
+	printf "puush.me username (email): "
+	read PUUSH_USER
+	printf "puush.me password: "
+	read -s PUUSH_PASSWORD
+	echo ""
+
+	PUUSH_KEY=`curl "https://puush.me/api/auth" -s -F "e=$PUUSH_USER" -F "p=$PUUSH_PASSWORD" | sed -E 's/^.?,(\w+),.?,.+$/\1/'`
+	if [[ "$PUUSH_KEY" == "" ]] || [[ "$PUUSH_KEY" == "-1" ]]; then
+		echo "Authentication failed! Please try again."
+		exit 1
+	else
+		mkdir -p "$HOME/.config/puush4linux/"
+		echo $PUUSH_KEY > "$HOME/.config/puush4linux/api_key" 
+		echo "Authentication successful."
+	fi
+	exit
+fi
+
+# Check if an API key exists.
+if [[ ! -e "$HOME/.config/puush4linux/api_key" ]]; then
+	if [[ $PUUSH_QUIET == 1 ]]; then
+		echo "API key is not set! Please run puush with the -l option to log in."
+	else 
+		notify-send "Can't puush: API key is not set. Please run puush with the -l option to log in."
+	fi
+	exit 1
+else
+	PUUSH_KEY=`cat "$HOME/.config/puush4linux/api_key"`
+fi
+
+# Generate a file name
+if [[ -z $PUUSH_FILE ]]; then 
+	PUUSH_FILE="/tmp/ss-`date '+%d-%m-%Y-%H%M%S'`.png"
+fi
+
+# Take the screenshot if necessary.
+case $PUUSH_MODE in
+	a) scrot -b -q 90 -s $PUUSH_FILE ;;
+	w) scrot -b -q 90 -u $PUUSH_FILE ;;
+	f) scrot -b -q 90 $PUUSH_FILE ;;
+esac
+
+# Check if the screenshot was successful.
+# If not, notify the user and exit the program.
+if [[ ! -e "$PUUSH_FILE" ]]; then
+	if [[ $PUUSH_QUIET != 1 ]]; then
+		notify-send "File can't be found, upload cancelled."
+	fi
+	exit 1
+fi
+# Notify the user that the upload is in progress.
+if [[ "$PUUSH_QUIET" != "1" ]]; then 
+	notify-send --urgency=low "Uploading file..."
+fi
+
+# Upload the screenshot.
+# Thanks github.com/blha303/puush-linux/ for assistance.
+PUUSH_URL=`curl "https://puush.me/api/up" -Ss -F "k=$PUUSH_KEY" -F "z=poop" -F "f=@$PUUSH_FILE" | sed -E 's/^.+,(.+),.+,.+$/\1\n/'`
+
+if [[ "$PUUSH_URL" == "-1," ]]; then
+	if [[ $PUUSH_QUIET != 1 ]]; then
+		notify-send "Upload failed due to authentication failure."
+	fi 
+
+	rm $PUUSH_FILE
+	exit 1
+fi
+
+if [[ "$PUUSH_URL" != http* ]]; then
+	if [[ $PUUSH_QUIET != 1 ]]; then
+		notify-send "Upload failed. Check your internet connection."
+	fi
+
+	rm $PUUSH_FILE
+	exit 2
+fi
+
+if [[ $PUUSH_CLIP == 1 ]]; then 
+	# Output the URL to the clipboard
+	echo $PUUSH_URL | xclip -i -selection clipboard
+	if [[ $PUUSH_QUIET != 1 ]]; then
+		notify-send "File uploaded and URL copied to clipboard."
+	fi
+else
+	# Display the URL in the terminal.
+	echo $PUUSH_URL
+fi
+
+# Clean up the temporary screenshot file.
+rm $PUUSH_FILE
