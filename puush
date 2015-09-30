@@ -162,5 +162,8 @@ else
 	echo $PUUSH_URL
 fi
 
-# Clean up the temporary screenshot file.
-rm $PUUSH_FILE
+# Clean up the temporary screenshot file if it was temporary.
+
+if [[ ! -z $PUUSH_MODE ]]; then
+	rm $PUUSH_FILE
+fi
