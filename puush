@@ -12,6 +12,7 @@ OPTIND=1
 
 PUUSH_QUIET=0 # Whether notifications via libnotify will be shown (default) or hidden.
 PUUSH_CLIP=0 # Whether the script will output to stdout (default) or the X clipboard.
+OPTIPNG_IMAGE=1 # Whether it will run a screenshotted image through optipng before uploading.
 
 sleep 0.2 # Fix for rogue WMs/DEs.
 
@@ -26,6 +27,7 @@ function show_help {
 	echo " -f 		Take a fullscreen screenshot and upload it."
 	echo " -w 		Take a screenshot of the active window and upload it."
 	echo " -l 		Log in to puush.me and save the API key."
+	echo " -b 		Don't run the image through optipng, only applies with -afw"
 	echo "Examples: "
 	echo " puush -c -a 	Take an area screenshot, upload it and put the URL into clipboard"
 	echo "		(emulates Ctrl+Shift+4 from the official version)"
@@ -33,7 +35,7 @@ function show_help {
 	exit 0
 }
 
-while getopts "h?qchafwl" opt; do
+while getopts "h?qchafwlb" opt; do
     case "$opt" in
     h|\?)
         show_help
@@ -51,6 +53,8 @@ while getopts "h?qchafwl" opt; do
 		;;
 	l)	PUUSH_SETUP=1
 		;;
+	b)  OPTIPNG_IMAGE=0
+		;;
     esac
 done
 
@@ -64,6 +68,11 @@ if hash notify-send 2>/dev/null; then
 	PUUSH_QUIET=0
 else
 	PUUSH_QUIET=1
+fi
+
+# Disable optipnging if there is no optipng
+if hash optipng 2>/dev/null; then true; else
+	OPTIPNG_IMAGE=0
 fi
 
 # Sanity check
@@ -115,6 +124,11 @@ case $PUUSH_MODE in
 	w) scrot -b -q 90 -u $PUUSH_FILE;;
 	f) scrot -b -q 90 $PUUSH_FILE;;
 esac
+
+# optimize image using optipng
+if [[ -n "$PUUSH_MODE" && $OPTIPNG_IMAGE = 1 ]]; then
+	optipng $PUUSH_OPTIPNG_OPTIONS -quiet $PUUSH_FILE
+fi
 
 # Check if the screenshot was successful.
 # If not, notify the user and exit the program.

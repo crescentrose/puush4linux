@@ -6,7 +6,7 @@ puush4linux is a Linux client for the popular screenshot host [puush](http://puu
 
 **Arch Linux** users may install the [puush4linux package](https://aur.archlinux.org/packages/puush4linux/) from the AUR, packaged by [/u/some_random_guy_5345](https://www.reddit.com/user/some_random_guy_5345).
 
-1. Install dependencies: `bash`, `scrot`, `curl`, `xclip` and (optionally) `libnotify`.
+1. Install dependencies: `bash`, `scrot`, `curl`, and `xclip`; optionally: `libnotify` and `optipng`.
 2. Download the puush file and copy it to `/usr/bin`.
 3. Run `puush -l` in your terminal and enter your user name and password to log in.
 4. Set up shortcuts in your window manager/desktop environment to your liking.
@@ -34,6 +34,8 @@ You do not need to specify the file name if you are going to use the script to t
 `-w` - Take a screenshot of the active window and upload it.
 
 `-l` - (Re-)log in to puush with your username and password.
+
+`-b` - Don't optimize images with optipng; only applies when using `-afw` (Automatically disabled if optipng isn't found on the system)
 
 ### Examples
 
