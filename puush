@@ -43,24 +43,24 @@ notify() {
 
 while getopts "h?qchafwlb" opt; do
     case "$opt" in
-    h|\?)
-        show_help
-        exit 0
+	    h|\?)
+	        show_help
+	        exit 0
         ;;
-    q)  PUUSH_QUIET=1
+	    q)  PUUSH_QUIET=1
         ;;
-	c)  PUUSH_CLIP=1
+			c)  PUUSH_CLIP=1
         ;;
-    a)  PUUSH_MODE=a
-		;;
-	f)  PUUSH_MODE=f
-		;;
-	w)	PUUSH_MODE=w
-		;;
-	l)	PUUSH_SETUP=1
-		;;
-	b)  OPTIPNG_IMAGE=0
-		;;
+	    a)  PUUSH_MODE=a
+				;;
+			f)  PUUSH_MODE=f
+				;;
+			w)	PUUSH_MODE=w
+				;;
+			l)	PUUSH_SETUP=1
+				;;
+			b)  OPTIPNG_IMAGE=0
+				;;
     esac
 done
 
