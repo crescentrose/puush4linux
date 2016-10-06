@@ -51,7 +51,7 @@ You do not need to specify the file name if you are going to use the script to t
 
 `puush -q myfile.png` - Upload an image and print the uploaded file URL to stdout without displaying desktop notifications.
 
-`env PUUSH_SCREENSHOT_DIR="$HOME/Pictures" PUUSH_DATE_FORMAT="%y-%m-%d_%H%M" puush -f` - Take a screenshot of the entire screen, store it in the 'Pictures' folder and use date format YY-MM-DD_HHMM for the filename.
+`env PUUSH_SCREENSHOT_DIR="$HOME/Pictures" PUUSH_DATE_FORMAT="%y-%m-%d_%H%M%S" puush -f` - Take a screenshot of the entire screen, store it in the '~/Pictures' folder and use date format yy-mm-dd_HHMMSS for the filename.
 
 ## Author & License
 
