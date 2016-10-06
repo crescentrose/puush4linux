@@ -55,7 +55,7 @@ function show_help {
 	echo " -f 		Take a fullscreen screenshot and upload it."
 	echo " -w 		Take a screenshot of the active window and upload it."
 	echo " -l 		Log in to puush.me and save the API key."
-	echo " -s 		Use scrot, even if maim and slop are installed."
+	echo " -s 		Use scrot even if maim and slop are installed."
 	echo "Examples: "
 	echo " puush -c -a 	Take an area screenshot, upload it and put the URL into clipboard"
 	echo "		(emulates Ctrl+Shift+4 from the official version)"
