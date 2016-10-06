@@ -12,6 +12,35 @@ OPTIND=1
 
 PUUSH_QUIET=0 # Whether notifications via libnotify will be shown (default) or hidden.
 PUUSH_CLIP=0 # Whether the script will output to stdout (default) or the X clipboard.
+PUUSH_XDOTOOL=0 # Needs to be installed for -w option when using maim.
+
+if type maim &> /dev/null && type slop &> /dev/null; then
+	# Prefer slop + maim over scrot, if they are installed
+	PUUSH_USE_SCROT=0
+	if type xdotool &> /dev/null; then
+		# If xdotool is not installed, produce an error when using -w with maim
+		PUUSH_XDOTOOL=1
+	fi
+else
+	PUUSH_USE_SCROT=1
+fi
+
+# Optional env variables:
+#   PUUSH_SCREENSHOT_DIR # If defined, saves screenshots here
+#     Example: env PUUSH_SCREENSHOT_DIR="$HOME/Pictures/puush"
+#   PUUSH_DATE_FORMAT # If defined, will be used instead of the default date format
+#     Example (for yyyy-mm-dd-HHMMSS): env PUUSH_DATE_FORMAT="%Y-%m-%d-%H%M%S"
+#     See 'man date' for more information
+
+# If PUUSH_SCREENSHOT_DIR is undefined, use /tmp
+if [[ -z $PUUSH_SCREENSHOT_DIR || ! -d $PUUSH_SCREENSHOT_DIR ]]; then
+	PUUSH_SCREENSHOT_DIR="/tmp"
+fi
+
+# If PUUSH_DATE_FORMAT is undefined, use dd-mm-yyyy-HHMMSS (the old default value)
+if [[ -z $PUUSH_DATE_FORMAT ]]; then
+	PUUSH_DATE_FORMAT="%d-%m-%Y-%H%M%S"
+fi
 
 sleep 0.2 # Fix for rogue WMs/DEs.
 
@@ -26,6 +55,7 @@ function show_help {
 	echo " -f 		Take a fullscreen screenshot and upload it."
 	echo " -w 		Take a screenshot of the active window and upload it."
 	echo " -l 		Log in to puush.me and save the API key."
+	echo " -s 		Use scrot even if maim and slop are installed."
 	echo "Examples: "
 	echo " puush -c -a 	Take an area screenshot, upload it and put the URL into clipboard"
 	echo "		(emulates Ctrl+Shift+4 from the official version)"
@@ -33,7 +63,7 @@ function show_help {
 	exit 0
 }
 
-while getopts "h?qchafwl" opt; do
+while getopts "h?qchafwls" opt; do
     case "$opt" in
     h|\?)
         show_help
@@ -51,6 +81,7 @@ while getopts "h?qchafwl" opt; do
 		;;
 	l)	PUUSH_SETUP=1
 		;;
+	s)	PUUSH_USE_SCROT=1
     esac
 done
 
@@ -106,15 +137,33 @@ fi
 
 # Generate a file name
 if [[ -z $PUUSH_FILE ]]; then
-	PUUSH_FILE="/tmp/ss-`date '+%d-%m-%Y-%H%M%S'`.png"
+	PUUSH_FILE="$PUUSH_SCREENSHOT_DIR/ss-`date +$PUUSH_DATE_FORMAT`.png"
 fi
 
 # Take the screenshot if necessary.
-case $PUUSH_MODE in
-	a) scrot -b -q 90 -s $PUUSH_FILE;;
-	w) scrot -b -q 90 -u $PUUSH_FILE;;
-	f) scrot -b -q 90 $PUUSH_FILE;;
-esac
+if [[ "$PUUSH_USE_SCROT" == 1 ]]; then
+	# Take the screenshot using scrot
+	case $PUUSH_MODE in
+		a) scrot -b -q 90 -s $PUUSH_FILE;;
+		w) scrot -b -q 90 -u $PUUSH_FILE;;
+		f) scrot -b -q 90 $PUUSH_FILE;;
+	esac
+else
+	# Take the screenshot using maim + slop
+	case $PUUSH_MODE in
+		a) maim -s $PUUSH_FILE;;
+		w) if [[ "$PUUSH_XDOTOOL" == 1 ]]; then
+			maim -i $(xdotool getactivewindow) $PUUSH_FILE
+		else
+			if [[ "$PUUSH_QUIET" == 0 ]]; then
+				notify-send "xdotool not installed, can't use -w with maim; use -s to use scrot instead."
+			else
+				echo "xdotool not installed, can't use -w with maim; use -s to use scrot instead."
+			fi
+		fi;;
+		f) maim $PUUSH_FILE;;
+	esac
+fi
 
 # Check if the screenshot was successful.
 # If not, notify the user and exit the program.
@@ -166,6 +215,6 @@ fi
 
 # Clean up the temporary screenshot file if it was temporary.
 
-if [[ ! -z $PUUSH_MODE ]]; then
+if [[ ! -z $PUUSH_MODE && $PUUSH_SCREENSHOT_DIR == "/tmp" ]]; then
 	rm $PUUSH_FILE
 fi
