@@ -15,13 +15,13 @@ puush4linux is a Linux client for the popular screenshot host [puush](http://puu
 
 ## Usage
 
-`puush <options> <filename>`
+`puush <options> [filename]`
 
 You do not need to specify the file name if you are going to use the script to take a screenshot.
 
 ### Options
 
-`-q` - Don't show any notifications on the desktop. (Automatically turned on if libnotify isn't found on the system.)
+`-q` - Don't show any notifications on the desktop. (Notifications are automatically disabled if libnotify isn't found on the system.)
 
 `-c` - Copy the URL of the uploaded file to X clipboard. If this is not specified, the URL will be sent to stdout.
 
@@ -45,20 +45,8 @@ You do not need to specify the file name if you are going to use the script to t
 
 ## Author & License
 
-Created by [Darwin](http://hpup.co) with ♥.
+Original version created by [Darwin](http://hpup.co) with ♥, licensed under the WTFPL v2
 
-```
-DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-            Version 2, December 2004
+This version is a fork of the original, and has been relicensed under the Apache License v2, see `LICENSE`.
 
-Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
-
-Everyone is permitted to copy and distribute verbatim or modified
-copies of this license document, and changing it is allowed as long
-as the name is changed.
-
-    DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
-
-0. You just DO WHAT THE FUCK YOU WANT TO.
-```
+WTFPL is *not* a legally or morally responsible license, which is why this fork won't be using it.

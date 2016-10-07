@@ -3,8 +3,9 @@
 # puush4linux v0.1
 # Bash client for the popular screenshot service puush.me
 # -------------------------------------------------------
-# Author: Darwin (http://hpup.co)
-# License: WTFPL, version 2
+# Original Author: Darwin (http://hpup.co)
+# Current Maintainer: Zeke Sonxx (https://github.com/zekesonxx)
+# License: Apache License v2
 
 
 # Read command line arguments.
