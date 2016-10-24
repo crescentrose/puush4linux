@@ -199,7 +199,7 @@ PUUSH_URL=$(curl "https://puush.me/api/up" -Ss -F "k=$PUUSH_KEY" -F "z=poop" -F 
 
 if [[ "$PUUSH_URL" == "-1," ]]; then
 		notify "Upload failed due to authentication failure."
-	if [[ ! -z $PUUSH_MODE ]]; then
+	if [[ ! -z $PUUSH_MODE && $PUUSH_SCREENSHOT_DIR == "/tmp" ]]; then
 		rm "$PUUSH_FILE"
 	fi
 	exit 1
@@ -209,7 +209,7 @@ if [[ "$PUUSH_URL" != http* ]]; then
 	if [[ $PUUSH_QUIET != 1 ]]; then
 		notify-send "Upload failed. Check your internet connection."
 	fi
-	if [[ ! -z $PUUSH_MODE ]]; then
+	if [[ ! -z $PUUSH_MODE && $PUUSH_SCREENSHOT_DIR == "/tmp" ]]; then
 		rm "$PUUSH_FILE"
 	fi
 	exit 2
