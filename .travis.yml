@@ -1,7 +1,10 @@
 # travis wants a language so we make it feel special
 language: ruby
-script: shellcheck --format tty puush
+before-script: 
+- cabal update
+- cabal install shellcheck
+script: ~/.cabal/binshellcheck --format tty puush
 addons:
   apt:
     packages:
-    - shellcheck
+    - cabal-install
