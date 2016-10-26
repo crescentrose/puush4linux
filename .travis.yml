@@ -1,0 +1,7 @@
+# travis wants a language so we make it feel special
+language: ruby
+script: shellcheck --format tty puush
+addons:
+  apt:
+    packages:
+    - shellcheck
