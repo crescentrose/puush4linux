@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# puush4linux v0.1
+# puush4linux v1.0
 # Bash client for the popular screenshot service puush.me
 # -------------------------------------------------------
-# Author: Darwin (http://hpup.co)
-# License: WTFPL, version 2
+# Original Author: Darwin (http://hpup.co)
+# Current Maintainer: Zeke Sonxx (https://github.com/zekesonxx)
+# License: Apache License v2
 
 
 # Read command line arguments.
@@ -12,6 +13,19 @@ OPTIND=1
 
 PUUSH_QUIET=0 # Whether notifications via libnotify will be shown (default) or hidden.
 PUUSH_CLIP=0 # Whether the script will output to stdout (default) or the X clipboard.
+OPTIPNG_IMAGE=1 # Whether it will run a screenshotted image through optipng before uploading.
+PUUSH_XDOTOOL=0 # Needs to be installed for -w option when using maim.
+
+if type maim &> /dev/null && type slop &> /dev/null; then
+	# Prefer slop + maim over scrot if they are installed
+	PUUSH_USE_SCROT=0
+	if type xdotool &> /dev/null; then
+		# If xdotool is not installed, produce an error when using -w with maim
+		PUUSH_XDOTOOL=1
+	fi
+else
+	PUUSH_USE_SCROT=1
+fi
 
 sleep 0.2 # Fix for rogue WMs/DEs.
 
@@ -26,6 +40,8 @@ function show_help {
 	echo " -f 		Take a fullscreen screenshot and upload it."
 	echo " -w 		Take a screenshot of the active window and upload it."
 	echo " -l 		Log in to puush.me and save the API key."
+	echo " -b 		Don't run the image through optipng, only applies with -afw"
+	echo " -s 		Use scrot even if maim and slop are installed."
 	echo "Examples: "
 	echo " puush -c -a 	Take an area screenshot, upload it and put the URL into clipboard"
 	echo "		(emulates Ctrl+Shift+4 from the official version)"
@@ -33,37 +49,67 @@ function show_help {
 	exit 0
 }
 
-while getopts "h?qchafwl" opt; do
+notify() {
+	if [[ $PUUSH_QUIET != 1 ]]; then
+		notify-send "$@"
+	fi
+}
+
+while getopts "h?qchafwlbs" opt; do
     case "$opt" in
-    h|\?)
-        show_help
-        exit 0
+	    h|\?)
+	        show_help
+	        exit 0
         ;;
-    q)  PUUSH_QUIET=1
+	    q)  PUUSH_QUIET=1
         ;;
-	c)  PUUSH_CLIP=1
+			c)  PUUSH_CLIP=1
         ;;
-    a)  PUUSH_MODE=a
-		;;
-	f)  PUUSH_MODE=f
-		;;
-	w)	PUUSH_MODE=w
-		;;
-	l)	PUUSH_SETUP=1
-		;;
+	    a)  PUUSH_MODE=a
+				;;
+			f)  PUUSH_MODE=f
+				;;
+			w)	PUUSH_MODE=w
+				;;
+			l)	PUUSH_SETUP=1
+				;;
+			b)  OPTIPNG_IMAGE=0
+				;;
+			s)  PUUSH_USE_SCROT=1
+				;;
     esac
 done
+
+# Optional env variables:
+#   PUUSH_SCREENSHOT_DIR # If defined, saves screenshots here
+#     Example: env PUUSH_SCREENSHOT_DIR="$HOME/Pictures/puush"
+#   PUUSH_DATE_FORMAT # If defined, will be used instead of the default date format
+#     Example (for yyyy-mm-dd-HHMMSS): env PUUSH_DATE_FORMAT="%Y-%m-%d-%H%M%S"
+#     See 'man date' for more information
+
+# If PUUSH_SCREENSHOT_DIR is undefined, use /tmp
+if [[ -z $PUUSH_SCREENSHOT_DIR || ! -d $PUUSH_SCREENSHOT_DIR ]]; then
+	PUUSH_SCREENSHOT_DIR="/tmp"
+fi
+
+# If PUUSH_DATE_FORMAT is undefined, use dd-mm-yyyy-HHMMSS (the old default value)
+if [[ -z $PUUSH_DATE_FORMAT ]]; then
+	PUUSH_DATE_FORMAT="%d-%m-%Y-%H%M%S"
+fi
 
 shift $((OPTIND-1))
 [ "$1" = "--" ] && shift
 
-PUUSH_FILE=$@
+PUUSH_FILE=$*
 
 # Disable notifications if notify-send is not available.
-if hash notify-send 2>/dev/null; then
-	PUUSH_QUIET=0
-else
+if hash notify-send 2>/dev/null; then true; else
 	PUUSH_QUIET=1
+fi
+
+# Disable optipnging if there is no optipng
+if hash optipng 2>/dev/null; then true; else
+	OPTIPNG_IMAGE=0
 fi
 
 # Sanity check
@@ -75,18 +121,18 @@ fi
 # Login logic
 if [[ "$PUUSH_SETUP" == 1 ]]; then
 	printf "puush.me username (email): "
-	read PUUSH_USER
+	read -r PUUSH_USER
 	printf "puush.me password: "
-	read -s PUUSH_PASSWORD
+	read -rs PUUSH_PASSWORD
 	echo ""
 
-	PUUSH_KEY=`curl "https://puush.me/api/auth" -s -F "e=$PUUSH_USER" -F "p=$PUUSH_PASSWORD" | sed -E 's/^.?,(\w+),.?,.+$/\1/'`
+	PUUSH_KEY=$(curl "https://puush.me/api/auth" -s -F "e=$PUUSH_USER" -F "p=$PUUSH_PASSWORD" | sed -E 's/^.?,(\w+),.?,.+$/\1/')
 	if [[ "$PUUSH_KEY" == "" ]] || [[ "$PUUSH_KEY" == "-1" ]]; then
 		echo "Authentication failed! Please try again."
 		exit 1
 	else
 		mkdir -p "$HOME/.config/puush4linux/"
-		echo $PUUSH_KEY > "$HOME/.config/puush4linux/api_key"
+		echo "$PUUSH_KEY" > "$HOME/.config/puush4linux/api_key"
 		echo "Authentication successful."
 	fi
 	exit
@@ -97,48 +143,64 @@ if [[ ! -e "$HOME/.config/puush4linux/api_key" ]]; then
 	if [[ $PUUSH_QUIET == 1 ]]; then
 		echo "API key is not set! Please run puush with the -l option to log in."
 	else
-		notify-send "Can't puush: API key is not set. Please run puush with the -l option to log in."
+		notify "Can't puush: API key is not set. Please run puush with the -l option to log in."
 	fi
 	exit 1
 else
-	PUUSH_KEY=`cat "$HOME/.config/puush4linux/api_key"`
+	PUUSH_KEY=$(cat "$HOME/.config/puush4linux/api_key")
 fi
 
 # Generate a file name
 if [[ -z $PUUSH_FILE ]]; then
-	PUUSH_FILE="/tmp/ss-`date '+%d-%m-%Y-%H%M%S'`.png"
+	PUUSH_FILE="$PUUSH_SCREENSHOT_DIR/ss-$(date +$PUUSH_DATE_FORMAT).png"
 fi
 
 # Take the screenshot if necessary.
-case $PUUSH_MODE in
-	a) scrot -b -q 90 -s $PUUSH_FILE;;
-	w) scrot -b -q 90 -u $PUUSH_FILE;;
-	f) scrot -b -q 90 $PUUSH_FILE;;
-esac
+if [[ "$PUUSH_USE_SCROT" == 1 ]]; then
+	# Take the screenshot using scrot
+	case $PUUSH_MODE in
+		a) scrot -b -q 90 -s "$PUUSH_FILE";;
+		w) scrot -b -q 90 -u "$PUUSH_FILE";;
+		f) scrot -b -q 90 "$PUUSH_FILE";;
+	esac
+else
+	# Take the screenshot using maim + slop
+	case $PUUSH_MODE in
+		a) maim -s "$PUUSH_FILE";;
+		w) if [[ "$PUUSH_XDOTOOL" == 1 ]]; then
+			maim -i "$(xdotool getactivewindow)" "$PUUSH_FILE"
+		else
+			notify "xdotool not installed, can't use -w with maim; use -s to use scrot instead."
+		fi;;
+		f) maim "$PUUSH_FILE";;
+	esac
+fi
+
+# optimize image using optipng
+if [[ -n "$PUUSH_MODE" && $OPTIPNG_IMAGE = 1 ]]; then
+	# shellcheck disable=2086
+	optipng $PUUSH_OPTIPNG_OPTIONS -quiet "$PUUSH_FILE"
+fi
 
 # Check if the screenshot was successful.
 # If not, notify the user and exit the program.
 if [[ ! -e "$PUUSH_FILE" ]]; then
-	if [[ $PUUSH_QUIET != 1 ]]; then
-		notify-send "File $PUUSH_FILE not found, upload cancelled. (mode: $PUUSH_MODE)"
-	fi
+	notify "File $PUUSH_FILE not found, upload cancelled. (mode: $PUUSH_MODE)"
 	exit 1
 fi
 # Notify the user that the upload is in progress.
 if [[ "$PUUSH_QUIET" != "1" ]]; then
-	notify-send --urgency=low "Uploading file..."
+	notify --urgency=low "Uploading file..."
 fi
 
 # Upload the screenshot.
 # Thanks github.com/blha303/puush-linux/ for assistance.
-PUUSH_URL=`curl "https://puush.me/api/up" -Ss -F "k=$PUUSH_KEY" -F "z=poop" -F "f=@$PUUSH_FILE" | sed -E 's/^.+,(.+),.+,.+$/\1\n/'`
+PUUSH_URL=$(curl "https://puush.me/api/up" -Ss -F "k=$PUUSH_KEY" -F "z=poop" -F "f=@$PUUSH_FILE" | sed -E 's/^.+,(.+),.+,.+$/\1\n/')
 
 if [[ "$PUUSH_URL" == "-1," ]]; then
-	if [[ $PUUSH_QUIET != 1 ]]; then
-		notify-send "Upload failed due to authentication failure."
-	fi
-	if [[ ! -z $PUUSH_MODE ]]; then
-		rm $PUUSH_FILE
+		notify "Upload failed due to authentication failure."
+	if [[ ! -z $PUUSH_MODE && $PUUSH_SCREENSHOT_DIR == "/tmp" ]]; then
+		rm "$PUUSH_FILE"
 	fi
 	exit 1
 fi
@@ -147,25 +209,23 @@ if [[ "$PUUSH_URL" != http* ]]; then
 	if [[ $PUUSH_QUIET != 1 ]]; then
 		notify-send "Upload failed. Check your internet connection."
 	fi
-	if [[ ! -z $PUUSH_MODE ]]; then
-		rm $PUUSH_FILE
+	if [[ ! -z $PUUSH_MODE && $PUUSH_SCREENSHOT_DIR == "/tmp" ]]; then
+		rm "$PUUSH_FILE"
 	fi
 	exit 2
 fi
 
 if [[ $PUUSH_CLIP == 1 ]]; then
 	# Output the URL to the clipboard
-	echo $PUUSH_URL | xclip -i -selection clipboard
-	if [[ $PUUSH_QUIET != 1 ]]; then
-		notify-send "File uploaded and URL copied to clipboard."
-	fi
+	echo "$PUUSH_URL" | xclip -i -selection clipboard
+	notify "File uploaded and URL copied to clipboard."
 else
 	# Display the URL in the terminal.
-	echo $PUUSH_URL
+	echo "$PUUSH_URL"
 fi
 
 # Clean up the temporary screenshot file if it was temporary.
 
-if [[ ! -z $PUUSH_MODE ]]; then
-	rm $PUUSH_FILE
+if [[ ! -z $PUUSH_MODE && $PUUSH_SCREENSHOT_DIR == "/tmp" ]]; then
+	rm "$PUUSH_FILE"
 fi
